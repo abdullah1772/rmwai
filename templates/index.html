@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Health Coach</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #chat-box {
+            flex: 1;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 75%;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .user {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .bot {
+            background-color: #f0f0f0;
+            color: black;
+            align-self: flex-start;
+        }
+
+        #input-container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            padding: 10px;
+            background-color: white;
+            border-top: 1px solid #ddd;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        #send-btn, #report-btn, #new-chat-btn {
+            padding: 12px 15px;
+            margin-left: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #send-btn:hover, #report-btn:hover, #new-chat-btn:hover {
+            background-color: #0056b3;
+        }
+
+        #new-chat-btn {
+            margin-left: 10px;
+            background-color: #28a745;
+        }
+
+        #new-chat-btn:hover {
+            background-color: #218838;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="chat-box"></div>
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="Type your message..." autofocus />
+        <button id="send-btn">Send</button>
+        <button id="report-btn" title="The more info you provide, the better the analysis.">Generate Report</button>
+        <button id="new-chat-btn">Start a New Chat</button>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById("chat-box");
+        const userInput = document.getElementById("user-input");
+        const sendBtn = document.getElementById("send-btn");
+        const reportBtn = document.getElementById("report-btn");
+        const newChatBtn = document.getElementById("new-chat-btn");
+
+        sendBtn.addEventListener("click", sendMessage);
+        userInput.addEventListener("keyup", function(event) {
+            if (event.key === "Enter") sendMessage();
+        });
+
+        reportBtn.addEventListener("click", generateReport);
+        newChatBtn.addEventListener("click", startNewChat);
+
+        function appendMessage(role, text, isFormatted = false) {
+            const msgElem = document.createElement("div");
+            msgElem.classList.add("message", role);
+            msgElem.textContent = text;
+            
+            if (isFormatted) {
+                msgElem.style.whiteSpace = "pre-wrap"; // Preserve line breaks and formatting
+            }
+
+            chatBox.appendChild(msgElem);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            appendMessage("user", message);
+            userInput.value = "";
+
+            fetch("/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage("bot", data.response);
+            });
+        }
+
+        function generateReport() {
+            appendMessage("bot", "Generating report...");
+
+            fetch("/generate_report", { method: "POST" })
+            .then(response => response.json())
+            .then(data => {
+                const formattedReport = formatReport(data.summary);
+                appendMessage("bot", formattedReport, true);
+            })
+            .catch(error => {
+                appendMessage("bot", "Error generating report.");
+            });
+        }
+
+        // ✅ Function to format the response properly
+        function formatReport(reportText) {
+        // Split the response into RMW Analysis and Auxiliary Faculty Analysis
+        const sections = reportText.split("📌"); // This separates each section
+        let formattedText = "";
+
+        sections.forEach(section => {
+            if (section.trim() !== "") {
+                formattedText += "📌 " + section.trim() + "\n\n"; // Adds a space after each section
+            }
+        });
+
+        return formattedText
+            .replace(/Reason \(R\):/g, "• **Reason:** ")
+            .replace(/Memory \(M\):/g, "• **Memory:** ")
+            .replace(/Will \(W\):/g, "• **Will:** ")
+            .replace(/Cognitive Effects:/g, "\n\n🔸 **Cognitive Effects**\n")
+            .replace(/Weak Reason:/g, "• **Weak Reason:** ")
+            .replace(/Unbalanced Memory:/g, "• **Unbalanced Memory:** ")
+            .replace(/Low Will:/g, "• **Low Will:** ")
+            .replace(/Optimization Strategy:/g, "\n\n✅ **Optimization Strategy**\n")
+            .replace(/For Reason:/g, "\n• **For Reason:** ")
+            .replace(/For Memory:/g, "\n• **For Memory:** ")
+            .replace(/For Will:/g, "\n• **For Will:** ")
+            .replace(/\./g, ".\n"); // Add line breaks after each sentence
+        }
+
+
+        function startNewChat() {
+            fetch("/new_chat", { method: "POST" })
+            .then(() => {
+                chatBox.innerHTML = "";
+                appendMessage("bot", "Hello, how can I be of assistance today?");
+            });
+        }
+
+        // ✅ Ensures the bot's greeting appears immediately after the page loads
+        document.addEventListener("DOMContentLoaded", function () {
+            appendMessage("bot", "Hello, how can I be of assistance today?");
+        });
+    </script>
+</body>
+</html>
