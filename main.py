@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import openai
 import os
 from dotenv import load_dotenv
@@ -8,6 +9,7 @@ from models import db, ChatThread
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 app.secret_key = "your_secret_key"
 
 # Configure SQLAlchemy (using SQLite here)
